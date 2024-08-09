@@ -2,6 +2,7 @@ from __future__ import annotations  # for pyright
 
 import argparse
 import json
+import logging
 import random
 import shlex
 import subprocess
@@ -12,6 +13,8 @@ from typing import Any
 import editdistance
 import requests
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 class Model(ABC):
@@ -119,16 +122,16 @@ def compute_predictions(
             if randomize_target:
                 prompt, target = randomize_prompt_target(prompt, target)
 
-            print(
+            logger.debug(
                 "\n".join(f">{line}" for line in prompt.rsplit("\n", maxsplit=4)[-4:])
             )
-            print("-      expected:", repr(target))
+            logger.info(f"-      expected: {repr(target)}")
 
             predictions = []
             for it in range(pass_at_k):
                 predicted = model(prompt)
                 predictions.append(predicted)
-                print(f"+ got [{it + 1:02} / {pass_at_k:02}]:", repr(predicted))
+                logger.info(f"+ got [{it + 1:02} / {pass_at_k:02}]: {repr(predicted)}")
 
             out = {"target": target, "predictions": predictions}
             out_json = json.dumps(out)
@@ -151,10 +154,11 @@ def compute_metrics(out_path: Path, pass_at_k: int = 1) -> None:
                 out[metric_name].append(score)
     for metric_name, scores in out.items():
         mean = 100 * sum(scores) / len(scores)
-        print(f"{metric_name:16}: {mean:0.2f}")
+        logger.info(f"{metric_name:16}: {mean:0.2f}")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "data_path", type=Path, help="Path to the RepoEval jsonl dataset."
